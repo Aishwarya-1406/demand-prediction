@@ -1,0 +1,6 @@
+dc_id,dc_name,city,region,transfer_cost_per_unit,latitude,longitude
+DC001,Mumbai Central DC,Mumbai,West,2.50,19.0760,72.8777
+DC002,Delhi North DC,Delhi,North,2.80,28.7041,77.1025
+DC003,Bangalore South DC,Bangalore,South,3.10,12.9716,77.5946
+DC004,Kolkata East DC,Kolkata,East,3.40,22.5726,88.3639
+DC005,Chennai South DC,Chennai,South,3.00,13.0827,80.2707

@@ -1,0 +1,16 @@
+sku_id,sku_name,category,criticality,unit_cost,purchase_cost_regular,purchase_cost_local,stockout_penalty_per_unit,holding_cost_pct
+SKU001,Amoxicillin 500mg,Antibiotic,High,45.00,45.00,67.50,500,0.25
+SKU002,Azithromycin 250mg,Antibiotic,High,72.00,72.00,108.00,600,0.25
+SKU003,Metformin 500mg,Antidiabetic,High,18.00,18.00,27.00,400,0.20
+SKU004,Paracetamol 500mg,Analgesic,Medium,8.00,8.00,12.00,150,0.20
+SKU005,Ibuprofen 400mg,NSAID,Medium,12.00,12.00,18.00,180,0.20
+SKU006,Omeprazole 20mg,GI,High,35.00,35.00,52.50,450,0.22
+SKU007,Atorvastatin 10mg,Cardiovascular,High,55.00,55.00,82.50,550,0.22
+SKU008,Losartan 50mg,Cardiovascular,High,42.00,42.00,63.00,480,0.22
+SKU009,Amlodipine 5mg,Cardiovascular,High,28.00,28.00,42.00,420,0.22
+SKU010,Metronidazole 400mg,Antibiotic,Medium,15.00,15.00,22.50,200,0.20
+SKU011,Cetirizine 10mg,Antihistamine,Low,6.00,6.00,9.00,80,0.18
+SKU012,Pantoprazole 40mg,GI,Medium,38.00,38.00,57.00,300,0.20
+SKU013,Doxycycline 100mg,Antibiotic,High,32.00,32.00,48.00,460,0.25
+SKU014,Ranitidine 150mg,GI,Low,10.00,10.00,15.00,100,0.18
+SKU015,Folic Acid 5mg,Supplement,Low,4.00,4.00,6.00,60,0.15

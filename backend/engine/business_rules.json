@@ -1,0 +1,11 @@
+{
+  "reserved_dc_stock": {},
+  "unreliable_suppliers": [],
+  "emergency_policy": {
+    "High": "prefer_local_if_stockout_within_3d",
+    "Medium": "prefer_transfer_if_available",
+    "Low": "prefer_regular"
+  },
+  "manual_overrides": {},
+  "notes": "Edit this file to configure business rules for the Human Agent layer. Keys: reserved_dc_stock={dc_id:[sku_ids]}, unreliable_suppliers=[supplier names], emergency_policy per criticality, manual_overrides={dc_id:{sku_id:{action,qty}}}."
+}
