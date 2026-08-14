@@ -260,7 +260,7 @@ function OptionsPanel({ data }: { data: any }) {
             <div className="option-metric"><span>Unit Cost</span><span className="val">{fmtCurrency(opt.unit_cost)}</span></div>
             {opt.expiry_savings > 0 && (
               <div className="option-metric" style={{ color: 'var(--green)' }}>
-                <span>Expiry Savings</span><span className="val">{fmtCurrency(opt.expiry_savings)}</span>
+                <span>Expiry-risk value rebalanced</span><span className="val">{fmtCurrency(opt.expiry_savings)}</span>
               </div>
             )}
             {opt.local_premium_pct > 0 && (
@@ -270,6 +270,18 @@ function OptionsPanel({ data }: { data: any }) {
             )}
             {infeasible && (
               <div style={{ marginTop: 6, fontSize: 10, color: 'var(--red)' }}>{opt.reject_reason}</div>
+            )}
+
+            {opt.transfer_batch_plan?.length > 0 && (
+              <div style={{ marginTop: 8, paddingTop: 7, borderTop: '1px solid var(--border)', fontSize: 10.5, color: 'var(--text-secondary)' }}>
+                <div style={{ color: 'var(--text-muted)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 4 }}>FEFO transfer batches</div>
+                {opt.transfer_batch_plan.map((batch: any) => (
+                  <div key={batch.batch_id} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, color: batch.is_near_expiry ? 'var(--yellow)' : 'var(--text-secondary)' }}>
+                    <span>{batch.batch_id}{batch.is_near_expiry ? ' · near expiry' : ''}</span>
+                    <span>{fmtNum(batch.qty)} units · {batch.days_to_expiry}d</span>
+                  </div>
+                ))}
+              </div>
             )}
 
             {/* Score breakdown */}

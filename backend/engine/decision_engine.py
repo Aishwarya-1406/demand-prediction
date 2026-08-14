@@ -163,7 +163,38 @@ def find_best_transfer_source(
 
     # Pick source with most available feasible qty first, then lowest cost
     candidates.sort(key=lambda x: (-x["transfer_qty"], x["total_cost"]))
-    return candidates[0]
+    winner = candidates[0]
+
+    # Allocate the recommended quantity against FEFO-safe source batches so the
+    # recommendation is traceable: planners can see exactly which batch moves.
+    remaining = int(winner["transfer_qty"])
+    batch_plan = []
+    near_expiry_qty = 0
+    for detail in winner["fefo_detail"].get("batch_details", []):
+        if remaining <= 0 or not detail.get("feasible"):
+            continue
+        safe_qty = int(detail.get("safe_transfer_qty", detail.get("qty", 0)))
+        allocated_qty = min(remaining, safe_qty)
+        if allocated_qty <= 0:
+            continue
+        days_to_expiry = int(detail["days_to_expiry"])
+        is_near_expiry = days_to_expiry <= 90
+        batch_plan.append({
+            "batch_id": detail["batch_id"],
+            "qty": allocated_qty,
+            "days_to_expiry": days_to_expiry,
+            "is_near_expiry": is_near_expiry,
+        })
+        if is_near_expiry:
+            near_expiry_qty += allocated_qty
+        remaining -= allocated_qty
+
+    # This is the value of near-expiry stock deliberately rebalanced through
+    # the FEFO transfer. It is at-risk inventory value, not a booked saving.
+    winner["transfer_batch_plan"] = batch_plan
+    winner["near_expiry_transfer_qty"] = near_expiry_qty
+    winner["expiry_savings"] = round(near_expiry_qty * unit_cost)
+    return winner
 
 
 # ── Option Evaluation ────────────────────────────────────────────────────────
@@ -221,6 +252,10 @@ def evaluate_all_options(
     if req_qty_transfer > 0:
         req_qty_transfer = max(req_qty_transfer, 50)
 
+    # The regular-supplier requirement is the replenishment trigger. If it is
+    # zero, inventory already covers lead-time demand and safety stock, so a
+    # zero-quantity supplier/transfer option must not compete with No Action.
+    no_replenishment_needed = req_qty_regular <= 0
     options = []
 
     # ── 1. No Action ────────────────────────────────────────────────────
@@ -234,9 +269,12 @@ def evaluate_all_options(
         "total_cost": 0,
         "expiry_risk": 0,
         "stockout_risk_qty": round(stockout_risk_days * avg_daily) if days_till_stockout < 7 else 0,
-        "feasible": days_till_stockout > 14,
-        "reject_reason": "stockout_imminent" if days_till_stockout <= 14 else None,
+        "feasible": no_replenishment_needed or days_till_stockout > 14,
+        "reject_reason": None if no_replenishment_needed or days_till_stockout > 14 else "stockout_imminent",
     })
+
+    if no_replenishment_needed:
+        return options
 
     # ── 2. Regular Supplier ────────────────────────────────────────────
     lt_reg_rows = lead_times[
@@ -314,6 +352,8 @@ def evaluate_all_options(
             "total_cost": round(total_cost_tr),
             "expiry_risk": best_transfer["expiry_risk_qty"],
             "expiry_savings": best_transfer["expiry_savings"],
+            "near_expiry_transfer_qty": best_transfer.get("near_expiry_transfer_qty", 0),
+            "transfer_batch_plan": best_transfer.get("transfer_batch_plan", []),
             "stockout_risk_qty": 0 if can_beat_tr else round(
                 (lt_tr - days_till_stockout) * avg_daily
             ),

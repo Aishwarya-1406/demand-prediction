@@ -136,7 +136,7 @@ def build_reason_string(winner: dict, criticality: str, days_till_stockout: floa
             f"Transfer from {src} is fastest available option (lead time {lt}d < stockout in {days_str}). "
         )
         if savings > 0:
-            base += f"Also prevents INR {savings:,} expiry write-off at source. "
+            base += f"Also rebalances INR {savings:,} of near-expiry inventory from the source DC. "
 
     if criticality == "High":
         base += f"High-criticality SKU: service level and speed weighted above cost."
