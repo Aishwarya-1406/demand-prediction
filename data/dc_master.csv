@@ -1,6 +1,9 @@
-dc_id,dc_name,city,region,transfer_cost_per_unit,latitude,longitude
-DC001,Mumbai Central DC,Mumbai,West,2.50,19.0760,72.8777
-DC002,Delhi North DC,Delhi,North,2.80,28.7041,77.1025
-DC003,Bangalore South DC,Bangalore,South,3.10,12.9716,77.5946
-DC004,Kolkata East DC,Kolkata,East,3.40,22.5726,88.3639
-DC005,Chennai South DC,Chennai,South,3.00,13.0827,80.2707
+dc_id,dc_name,city,region,transfer_cost_per_unit,latitude,longitude,dc_tier,storage_capacity_units,service_priority
+DC001,Chennai DC,Chennai,South,12.5,13.0827,80.2707,Metro,50000,1
+DC002,Bangalore DC,Bangalore,South,10.0,12.9716,77.5946,Metro,45000,1
+DC003,Hyderabad DC,Hyderabad,South,10.0,17.385,78.4867,Tier-2,40000,2
+DC004,Mumbai DC,Mumbai,West,15.0,19.076,72.8777,Metro,60000,1
+DC005,Delhi DC,Delhi,North,17.5,28.7041,77.1025,Metro,55000,1
+DC006,Kolkata DC,Kolkata,East,20.0,22.5726,88.3639,Metro,35000,1
+DC007,Pune DC,Pune,West,12.5,18.5204,73.8567,Tier-2,30000,2
+DC008,Ahmedabad DC,Ahmedabad,West,15.0,23.0225,72.5714,Tier-2,35000,2

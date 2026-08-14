@@ -53,9 +53,14 @@ def add_features(df: pd.DataFrame) -> pd.DataFrame:
     df["flu_x_lag7"] = df["flu_season_index"] * df["demand_lag_7"].fillna(0)
     df["promo_x_lag7"] = df["promo_flag"] * df["demand_lag_7"].fillna(0)
 
-    # Fill remaining NaNs from lags at start of series
+    # Fill remaining NaNs from lags at start of series (use group median, fallback to 0)
     for col in ["demand_lag_1", "demand_lag_7", "demand_lag_14"]:
-        df[col] = df[col].fillna(df["demand_units"].mean())
+        global_median = df["demand_units"].median()
+        df[col] = df[col].fillna(global_median).fillna(0)
+
+    # Fill any NaN in demand_units itself (290 rows from outlier removal)
+    grp_med = df.groupby(["dc_id", "sku_id"])["demand_units"].transform("median")
+    df["demand_units"] = df["demand_units"].fillna(grp_med).fillna(0)
 
     return df
 
@@ -66,18 +71,22 @@ def get_train_test(df: pd.DataFrame, test_days: int = 21):
     Returns (X_train, X_test, y_train, y_test, test_df).
     """
     df = add_features(df)
-    df = df.dropna(subset=FEATURE_COLS)
+    # Drop rows where key features OR target are NaN
+    df = df.dropna(subset=FEATURE_COLS + [TARGET_COL])
+    # Extra safety: clip infinite values
+    for col in FEATURE_COLS:
+        df[col] = df[col].replace([np.inf, -np.inf], 0)
 
     max_date = df["date"].max()
     cutoff = max_date - pd.Timedelta(days=test_days)
 
     train = df[df["date"] <= cutoff]
-    test = df[df["date"] > cutoff]
+    test  = df[df["date"] >  cutoff]
 
     X_train = train[FEATURE_COLS].values
     y_train = train[TARGET_COL].values
-    X_test = test[FEATURE_COLS].values
-    y_test = test[TARGET_COL].values
+    X_test  = test[FEATURE_COLS].values
+    y_test  = test[TARGET_COL].values
 
     return X_train, X_test, y_train, y_test, test
 

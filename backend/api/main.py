@@ -11,7 +11,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from engine.precompute import run_full_pipeline, load_cache
-from api.routers import dc, sku, replenishment, rules
+from api.routers import dc, sku, replenishment, rules, escalation
 
 # Global cache
 _cache = {}
@@ -54,6 +54,7 @@ app.include_router(dc.router)
 app.include_router(sku.router)
 app.include_router(replenishment.router)
 app.include_router(rules.router)
+app.include_router(escalation.router)
 
 
 @app.get("/api/health")

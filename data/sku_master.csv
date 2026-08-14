@@ -1,16 +1,41 @@
 sku_id,sku_name,category,criticality,unit_cost,purchase_cost_regular,purchase_cost_local,stockout_penalty_per_unit,holding_cost_pct
-SKU001,Amoxicillin 500mg,Antibiotic,High,45.00,45.00,67.50,500,0.25
-SKU002,Azithromycin 250mg,Antibiotic,High,72.00,72.00,108.00,600,0.25
-SKU003,Metformin 500mg,Antidiabetic,High,18.00,18.00,27.00,400,0.20
-SKU004,Paracetamol 500mg,Analgesic,Medium,8.00,8.00,12.00,150,0.20
-SKU005,Ibuprofen 400mg,NSAID,Medium,12.00,12.00,18.00,180,0.20
-SKU006,Omeprazole 20mg,GI,High,35.00,35.00,52.50,450,0.22
-SKU007,Atorvastatin 10mg,Cardiovascular,High,55.00,55.00,82.50,550,0.22
-SKU008,Losartan 50mg,Cardiovascular,High,42.00,42.00,63.00,480,0.22
-SKU009,Amlodipine 5mg,Cardiovascular,High,28.00,28.00,42.00,420,0.22
-SKU010,Metronidazole 400mg,Antibiotic,Medium,15.00,15.00,22.50,200,0.20
-SKU011,Cetirizine 10mg,Antihistamine,Low,6.00,6.00,9.00,80,0.18
-SKU012,Pantoprazole 40mg,GI,Medium,38.00,38.00,57.00,300,0.20
-SKU013,Doxycycline 100mg,Antibiotic,High,32.00,32.00,48.00,460,0.25
-SKU014,Ranitidine 150mg,GI,Low,10.00,10.00,15.00,100,0.18
-SKU015,Folic Acid 5mg,Supplement,Low,4.00,4.00,6.00,60,0.15
+MED001,Medication-ANA-1,Analgesic,Low,30.67,30.67,46.005,92.01,0.2
+MED002,Medication-GAS-2,Gastrointestinal,Medium,31.76,31.76,47.64,95.28,0.2
+MED003,Medication-EME-3,Emergency,High,67.67,67.67,101.505,338.35,0.2
+MED004,Medication-DIA-4,Diabetes,High,97.67,97.67,146.505,488.35,0.2
+MED005,Medication-RES-5,Respiratory,High,92.8,92.8,139.2,464.0,0.2
+MED006,Medication-GAS-6,Gastrointestinal,Medium,74.43,74.43,111.64500000000001,223.29000000000002,0.2
+MED007,Medication-EME-7,Emergency,High,14.06,14.06,21.09,70.3,0.2
+MED008,Medication-CAR-8,Cardiovascular,High,31.21,31.21,46.815,156.05,0.2
+MED009,Medication-CAR-9,Cardiovascular,High,57.14,57.14,85.71000000000001,285.7,0.2
+MED010,Medication-RES-10,Respiratory,High,85.71,85.71,128.565,428.54999999999995,0.2
+MED011,Medication-ANT-11,Antipyretic,Low,58.16,58.16,87.24,174.48,0.2
+MED012,Medication-RES-12,Respiratory,High,31.34,31.34,47.01,156.7,0.2
+MED013,Medication-GAS-13,Gastrointestinal,Medium,113.43,113.43,170.145,340.29,0.2
+MED014,Medication-VIT-14,Vitamin,Low,57.77,57.77,86.655,173.31,0.2
+MED015,Medication-CAR-15,Cardiovascular,High,90.91,90.91,136.365,454.54999999999995,0.2
+MED016,Medication-RES-16,Respiratory,High,63.6,63.6,95.4,318.0,0.2
+MED017,Medication-ANA-17,Analgesic,Low,83.26,83.26,124.89000000000001,249.78000000000003,0.2
+MED018,Medication-GAS-18,Gastrointestinal,Medium,65.85,65.85,98.77499999999999,197.54999999999998,0.2
+MED019,Medication-ANA-19,Analgesic,Low,35.68,35.68,53.519999999999996,107.03999999999999,0.2
+MED020,Medication-ANA-20,Analgesic,Low,5.37,5.37,8.055,16.11,0.2
+MED021,Medication-EME-21,Emergency,High,39.32,39.32,58.980000000000004,196.6,0.2
+MED022,Medication-ANT-22,Antipyretic,Low,114.65,114.65,171.97500000000002,343.95000000000005,0.2
+MED023,Medication-RES-23,Respiratory,High,46.74,46.74,70.11,233.70000000000002,0.2
+MED024,Medication-ANT-24,Antibiotic,High,14.06,14.06,21.09,70.3,0.2
+MED025,Medication-EME-25,Emergency,High,59.66,59.66,89.49,298.29999999999995,0.2
+MED026,Medication-DIA-26,Diabetes,High,115.9,115.9,173.85000000000002,579.5,0.2
+MED027,Medication-DIA-27,Diabetes,High,47.94,47.94,71.91,239.7,0.2
+MED028,Medication-ANA-28,Analgesic,Low,7.42,7.42,11.129999999999999,22.259999999999998,0.2
+MED029,Medication-CAR-29,Cardiovascular,High,11.77,11.77,17.655,58.849999999999994,0.2
+MED030,Medication-RES-30,Respiratory,High,81.93,81.93,122.89500000000001,409.65000000000003,0.2
+MED031,Medication-VIT-31,Vitamin,Low,51.81,51.81,77.715,155.43,0.2
+MED032,Medication-GAS-32,Gastrointestinal,Medium,104.34,104.34,156.51,313.02,0.2
+MED033,Medication-ANT-33,Antibiotic,High,104.09,104.09,156.135,520.45,0.2
+MED034,Medication-CAR-34,Cardiovascular,High,26.1,26.1,39.150000000000006,130.5,0.2
+MED035,Medication-ANA-35,Analgesic,Low,68.29,68.29,102.435,204.87,0.2
+MED036,Medication-ANA-36,Analgesic,Low,24.13,24.13,36.195,72.39,0.2
+MED037,Medication-CAR-37,Cardiovascular,High,23.93,23.93,35.894999999999996,119.65,0.2
+MED038,Medication-DIA-38,Diabetes,High,37.8,37.8,56.699999999999996,189.0,0.2
+MED039,Medication-ANT-39,Antipyretic,Low,11.73,11.73,17.595,35.19,0.2
+MED040,Medication-RES-40,Respiratory,High,62.83,62.83,94.245,314.15,0.2

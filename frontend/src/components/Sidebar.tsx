@@ -4,9 +4,11 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 
 const navItems = [
-  { href: '/dashboard', label: 'Dashboard', icon: '◉' },
+  { href: '/dashboard',   label: 'Dashboard',    icon: '◉' },
   { href: '/replenishment', label: 'Replenishment', icon: '⬡' },
+  { href: '/escalation',  label: 'Escalation',   icon: '🚨' },
 ]
+
 
 const dcItems = [
   { id: 'DC001', name: 'Mumbai', icon: '●' },

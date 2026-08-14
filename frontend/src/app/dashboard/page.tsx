@@ -108,7 +108,18 @@ export default function DashboardPage() {
                     onClick={() => router.push(`/dc/${dc.dc_id}`)}>
                     <div className="dc-card-header">
                       <div>
-                        <div className="dc-card-name">{dc.dc_name || dc.dc_id}</div>
+                        <div className="dc-card-name" style={{ display:'flex', alignItems:'center', gap:6 }}>
+                          {dc.dc_name || dc.dc_id}
+                          {dc.dc_tier && (
+                            <span style={{
+                              fontSize: 9, fontWeight: 700, letterSpacing: '0.05em',
+                              padding: '2px 6px', borderRadius: 4,
+                              background: dc.dc_tier === 'Metro' ? 'rgba(99,102,241,0.15)' : 'rgba(245,158,11,0.15)',
+                              color: dc.dc_tier === 'Metro' ? '#818cf8' : '#fbbf24',
+                              textTransform: 'uppercase',
+                            }}>{dc.dc_tier}</span>
+                          )}
+                        </div>
                         <div className="dc-card-city">{dc.city} · {dc.region}</div>
                       </div>
                       <span className={`badge badge-${hc}`}>

@@ -368,7 +368,110 @@ function DACDFPanel({ data }: { data: any }) {
   )
 }
 
-/* ─── Main SKU Detail Page ────────────────────────────────── */
+/* ─── Panel G: Replenishment Frequency ───────────────────── */
+function FrequencyPanel({ data }: { data: any }) {
+  const fp = data.frequency_plan || {}
+  const dp = fp.distributor_performance || {}
+  const risk = fp.frequency_risk_flag || 'ok'
+  const riskColor = risk === 'critical' ? 'var(--red)' : risk === 'warning' ? 'var(--yellow)' : 'var(--green)'
+
+  return (
+    <>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 14 }}>
+        {[
+          { label: 'EOQ', val: `${fp.eoq?.toLocaleString() || '—'} units` },
+          { label: 'Review Period', val: `${fp.review_period_days || '—'}d (${fp.recommended_order_frequency || '—'})`, col: riskColor },
+          { label: 'Cycles / Year', val: fp.reorder_cycles_per_year || '—' },
+          { label: 'Computed Safety Stock', val: `${fp.safety_stock_computed?.toLocaleString() || '—'} units` },
+          { label: 'Next Review Date', val: fp.next_review_date || '—' },
+          { label: 'Frequency Risk', val: (risk || '—').toUpperCase(), col: riskColor },
+        ].map(m => (
+          <div key={m.label} style={{ padding: '8px 10px', background: 'var(--bg-card-2)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+            <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{m.label}</div>
+            <div style={{ fontSize: 14, fontWeight: 700, fontFamily: 'var(--font-mono)', color: m.col || 'var(--text-primary)', marginTop: 2 }}>{m.val}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ padding: '10px 14px', background: 'var(--bg-card-2)', borderRadius: 8, fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.7, marginBottom: 14 }}>
+        {fp.recommendation || 'No frequency data available.'}
+      </div>
+      {dp.n_orders > 0 && (
+        <>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Distributor Performance</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+            {[
+              { label: 'Fill Rate', val: `${((dp.fill_rate || 0) * 100).toFixed(1)}%`, col: dp.fill_rate < 0.85 ? 'var(--red)' : dp.fill_rate < 0.95 ? 'var(--yellow)' : 'var(--green)' },
+              { label: 'On-Time Rate', val: `${((dp.on_time_rate || 0) * 100).toFixed(1)}%`, col: dp.on_time_rate < 0.8 ? 'var(--red)' : 'var(--green)' },
+              { label: 'Avg Cycle', val: `${dp.avg_order_cycle_days?.toFixed(0) || '—'}d` },
+            ].map(m => (
+              <div key={m.label} style={{ padding: '8px 10px', background: 'var(--bg-card-2)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border)' }}>
+                <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{m.label}</div>
+                <div style={{ fontSize: 16, fontWeight: 700, fontFamily: 'var(--font-mono)', color: m.col || 'var(--text-primary)', marginTop: 2 }}>{m.val}</div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </>
+  )
+}
+
+/* ─── Panel H: Escalation ─────────────────────────────────── */
+const TIER_COLOR: Record<number, string> = { 0: 'var(--green)', 1: 'var(--yellow)', 2: 'var(--orange)', 3: 'var(--red)' }
+const TIER_BG: Record<number, string>    = { 0: 'var(--green-dim)', 1: 'var(--yellow-dim)', 2: 'rgba(227,179,65,0.12)', 3: 'var(--red-dim)' }
+const TIER_ICON: Record<number, string>  = { 0: '✅', 1: '📋', 2: '⚠️', 3: '🚨' }
+
+function EscalationPanel({ data }: { data: any }) {
+  const esc = data.escalation || {}
+  const tier: number = esc.escalation_tier ?? 0
+
+  return (
+    <>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, padding: '14px 16px', background: TIER_BG[tier], borderRadius: 10, marginBottom: 14 }}>
+        <div style={{ fontSize: 36 }}>{TIER_ICON[tier]}</div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 18, fontWeight: 700, color: TIER_COLOR[tier] }}>Tier {tier}: {esc.escalation_label}</div>
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 4 }}>{esc.escalation_description}</div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>Review every</div>
+          <div style={{ fontSize: 22, fontWeight: 800, fontFamily: 'var(--font-mono)', color: TIER_COLOR[tier] }}>{esc.review_cadence_hours}h</div>
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+        <div>
+          <Stat label="Owner" value={esc.escalation_owner} />
+          <Stat label="Next Review" value={esc.next_review_datetime?.slice(0, 16)} />
+          <Stat label="Est. Resolution" value={esc.estimated_resolution_date || 'N/A'} />
+        </div>
+        <div>
+          <Stat label="Days Till Stockout" value={esc.days_till_stockout >= 9999 ? '∞' : `${esc.days_till_stockout}d`}
+            color={esc.days_till_stockout < 3 ? 'var(--red)' : esc.days_till_stockout < 7 ? 'var(--yellow)' : 'var(--green)'} />
+          <Stat label="Health Flag" value={esc.health_flag?.toUpperCase()} />
+          <Stat label="Trend" value={esc.trend} />
+        </div>
+      </div>
+
+      <div style={{ padding: '10px 14px', background: 'var(--bg-card-2)', borderRadius: 8, fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.7, marginBottom: 12 }}>
+        <strong style={{ color: 'var(--text-primary)' }}>Recommended Action: </strong>{esc.escalation_action}
+      </div>
+
+      {esc.shortage_notes?.length > 0 && (
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Contextual Notes</div>
+          {esc.shortage_notes.map((note: string, i: number) => (
+            <div key={i} style={{ padding: '8px 12px', background: 'rgba(210,153,34,0.08)', borderLeft: '3px solid var(--yellow)', borderRadius: '0 6px 6px 0', marginBottom: 6, fontSize: 12, color: 'var(--text-secondary)' }}>
+              {note}
+            </div>
+          ))}
+        </div>
+      )}
+    </>
+  )
+}
+
+
 export default function SKUDetailPage() {
   const { dc_id, sku_id } = useParams<{ dc_id: string; sku_id: string }>()
   const router = useRouter()
@@ -398,7 +501,7 @@ export default function SKUDetailPage() {
           <div className="topbar-breadcrumb">
             <span style={{ cursor: 'pointer' }} onClick={() => router.push('/dashboard')}>Dashboard</span>
             <span className="crumb-sep">/</span>
-            <span style={{ cursor: 'pointer' }} onClick={() => router.push(`/dc/${dc_id}`)}>{dc_id}</span>
+            <span style={{ cursor: 'pointer' }} onClick={() => router.push(`/dc/${dc_id}`)}>DC {dc_id}</span>
             <span className="crumb-sep">/</span>
             <span className="crumb-current">{sku_id}</span>
           </div>
@@ -408,6 +511,11 @@ export default function SKUDetailPage() {
               <span className={`dot dot-${data.health_flag}`} />
               {data.health_flag?.toUpperCase()}
             </span>
+            {(data.escalation?.escalation_tier ?? 0) >= 2 && (
+              <span className="badge" style={{ background: TIER_BG[data.escalation.escalation_tier], color: TIER_COLOR[data.escalation.escalation_tier] }}>
+                {TIER_ICON[data.escalation.escalation_tier]} {data.escalation.escalation_label}
+              </span>
+            )}
           </div>
         </div>
 
@@ -422,6 +530,19 @@ export default function SKUDetailPage() {
               <button className="btn btn-secondary" onClick={() => router.push(`/dc/${dc_id}`)}>← Back to {dc_id}</button>
             </div>
           </div>
+
+          {/* Active promo events banner */}
+          {data.active_promo_events?.length > 0 && (
+            <div style={{ background: 'rgba(47,129,247,0.08)', border: '1px solid var(--accent-dim)', borderRadius: 8, padding: '10px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, flexWrap: 'wrap' }}>
+              <span>📅</span>
+              <span style={{ color: 'var(--accent)', fontWeight: 600 }}>Active Market Events:</span>
+              {data.active_promo_events.map((e: any, i: number) => (
+                <span key={i} style={{ background: 'var(--bg-card-2)', padding: '2px 10px', borderRadius: 20, color: 'var(--text-secondary)' }}>
+                  {e.event_name} <span style={{ color: 'var(--yellow)', fontWeight: 600 }}>×{e.demand_multiplier}</span>
+                </span>
+              ))}
+            </div>
+          )}
 
           <div className="sku-panels">
             {/* A: Demand Forecast */}
@@ -452,6 +573,16 @@ export default function SKUDetailPage() {
             {/* F: DACDF */}
             <SectionCard title="DACDF — Dual-Agent Decision Fusion" icon="🤝" wide>
               <DACDFPanel data={data} />
+            </SectionCard>
+
+            {/* G: Replenishment Frequency (NEW) */}
+            <SectionCard title="Replenishment Frequency & Distributor Performance" icon="🔄">
+              <FrequencyPanel data={data} />
+            </SectionCard>
+
+            {/* H: Escalation (NEW) */}
+            <SectionCard title="Escalation & Review Cadence" icon="🚨">
+              <EscalationPanel data={data} />
             </SectionCard>
           </div>
         </div>

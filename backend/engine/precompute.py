@@ -9,12 +9,14 @@ import pandas as pd
 from pathlib import Path
 from typing import Optional
 
-from .data_loader import load_all, get_latest_snapshot, get_dc_health_summary, get_batches_for
+from .data_loader import load_all, get_latest_snapshot, get_dc_health_summary, get_batches_for, get_active_promo_events
 from .feature_engineering import add_features, classify_trend
 from .forecasting import train_models, forecast_sku_dc
 from .decision_engine import evaluate_all_options
 from .scoring import score_options, build_reason_string
 from .dacdf import run_dacdf
+from .frequency import compute_frequency_plan
+from .escalation import run_escalation
 
 CACHE_DIR = Path(__file__).parent.parent / "cache"
 CACHE_DIR.mkdir(exist_ok=True)
@@ -54,6 +56,8 @@ def run_full_pipeline(verbose: bool = True) -> dict:
     if verbose: print("[1/6] Loading data...")
     raw = load_all()
     dd = raw["demand"]
+    dist_orders = raw.get("distributor_orders")
+    active_promo_events = get_active_promo_events(raw, ANALYSIS_DATE)
     sm = raw["sku"]
     dc = raw["dc"]
     lt = raw["lead_times"]
@@ -153,6 +157,49 @@ def run_full_pipeline(verbose: bool = True) -> dict:
             inbound = float(snap["inbound_inventory"])
             req_qty = max(0, demand_lt + safety_stock - usable - inbound)
 
+            # Lead times for frequency + escalation
+            lt_sub = lt[(lt["dc_id"] == dc_id) & (lt["sku_id"] == sku_id)]
+            lt_reg = float(lt_sub[lt_sub["supplier_type"] == "regular"]["lead_time_days"].iloc[0]) \
+                if not lt_sub[lt_sub["supplier_type"] == "regular"].empty else 7.0
+            lt_loc = float(lt_sub[lt_sub["supplier_type"] == "local"]["lead_time_days"].iloc[0]) \
+                if not lt_sub[lt_sub["supplier_type"] == "local"].empty else 2.0
+
+            # Replenishment frequency optimisation
+            freq_plan = compute_frequency_plan(
+                dc_id=dc_id,
+                sku_id=sku_id,
+                avg_daily_demand=avg_daily,
+                demand_std=float(sub.std()) if len(sub) > 1 else avg_daily * 0.3,
+                unit_cost=float(sku_info.get("unit_cost", 10)),
+                holding_cost_pct=float(sku_info.get("holding_cost_pct", 0.20)),
+                lead_time_regular=lt_reg,
+                lead_time_local=lt_loc,
+                criticality=criticality,
+                days_till_stockout=days_till_stockout,
+                distributor_df=dist_orders if dist_orders is not None and not dist_orders.empty else None,
+            )
+            # Annotate next review date
+            import datetime
+            freq_plan["next_review_date"] = str(
+                (ANALYSIS_DATE + pd.Timedelta(days=freq_plan["review_period_days"])).date()
+            )
+
+            # Escalation tier
+            esc = run_escalation(
+                dc_id=dc_id,
+                sku_id=sku_id,
+                criticality=criticality,
+                health_flag=str(snap["health_flag"]),
+                days_till_stockout=days_till_stockout,
+                lead_time_regular=lt_reg,
+                lead_time_local=lt_loc,
+                near_expiry_qty=near_expiry_qty,
+                avg_daily_demand=avg_daily,
+                best_action=dacdf["final_option"],
+                trend=fcast.get("trend", "stable"),
+                mape=fcast.get("mape"),
+            )
+
             result = {
                 "dc_id": dc_id,
                 "sku_id": sku_id,
@@ -176,6 +223,9 @@ def run_full_pipeline(verbose: bool = True) -> dict:
                 "batches": batches_sku.to_dict("records"),
                 "options": scored,
                 "dacdf": dacdf,
+                "frequency_plan": freq_plan,
+                "escalation": esc,
+                "active_promo_events": active_promo_events,
             }
             all_results[dc_id][sku_id] = result
 
@@ -197,6 +247,16 @@ def run_full_pipeline(verbose: bool = True) -> dict:
                 "ai_confidence": dacdf["alpha"],
                 "near_expiry_qty": near_expiry_qty,
                 "trend": fcast.get("trend", "stable"),
+                # New fields
+                "review_period_days": freq_plan["review_period_days"],
+                "order_frequency": freq_plan["recommended_order_frequency"],
+                "frequency_risk": freq_plan["frequency_risk_flag"],
+                "escalation_tier": esc["escalation_tier"],
+                "escalation_label": esc["escalation_label"],
+                "escalation_color": esc["escalation_color"],
+                "escalation_owner": esc["escalation_owner"],
+                "escalation_action": esc["escalation_action"],
+                "next_review_datetime": esc["next_review_datetime"],
             })
 
     if verbose: print("[5/6] Computing network KPIs...")

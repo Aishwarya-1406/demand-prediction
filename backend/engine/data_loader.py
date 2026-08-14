@@ -11,14 +11,39 @@ ANALYSIS_DATE = pd.Timestamp("2026-08-13")
 
 
 def load_all():
-    """Return dict of all raw DataFrames."""
+    """Return dict of all raw DataFrames including distributor orders and promo calendar."""
     dd = pd.read_csv(DATA_DIR / "daily_demand_inventory.csv", parse_dates=["date"])
     sm = pd.read_csv(DATA_DIR / "sku_master.csv")
     dc = pd.read_csv(DATA_DIR / "dc_master.csv")
     lt = pd.read_csv(DATA_DIR / "lead_times.csv")
     bt = pd.read_csv(DATA_DIR / "batches.csv",
                      parse_dates=["expiry_date", "manufacture_date", "receipt_date_at_dc"])
-    return {"demand": dd, "sku": sm, "dc": dc, "lead_times": lt, "batches": bt}
+
+    # Distributor order patterns (new)
+    dist_path = DATA_DIR / "distributor_orders.csv"
+    dist = pd.read_csv(dist_path, parse_dates=["order_date", "promised_delivery_date", "actual_delivery_date"]) \
+        if dist_path.exists() else pd.DataFrame()
+
+    # Promotional / seasonal calendar (new)
+    promo_path = DATA_DIR / "promo_calendar.csv"
+    promo = pd.read_csv(promo_path, parse_dates=["start_date", "end_date"]) \
+        if promo_path.exists() else pd.DataFrame()
+
+    return {
+        "demand": dd, "sku": sm, "dc": dc,
+        "lead_times": lt, "batches": bt,
+        "distributor_orders": dist,
+        "promo_calendar": promo,
+    }
+
+
+def get_active_promo_events(raw: dict, date: pd.Timestamp) -> list:
+    """Return list of promo/seasonal events active on a given date."""
+    promo = raw.get("promo_calendar", pd.DataFrame())
+    if promo.empty:
+        return []
+    active = promo[(promo["start_date"] <= date) & (promo["end_date"] >= date)]
+    return active.to_dict("records")
 
 
 def get_demand_enriched(raw: dict) -> pd.DataFrame:
@@ -30,7 +55,11 @@ def get_demand_enriched(raw: dict) -> pd.DataFrame:
     sm = raw["sku"][["sku_id", "sku_name", "category", "criticality",
                       "unit_cost", "purchase_cost_regular", "purchase_cost_local",
                       "stockout_penalty_per_unit", "holding_cost_pct"]]
-    dc = raw["dc"][["dc_id", "dc_name", "city", "region", "transfer_cost_per_unit"]]
+    dc = raw["dc"][[
+        "dc_id", "dc_name", "city", "region",
+        "transfer_cost_per_unit",
+        "dc_tier", "storage_capacity_units", "service_priority",
+    ]]
 
     dd = dd.merge(sm, on="sku_id", how="left")
     dd = dd.merge(dc, on="dc_id", how="left")
@@ -145,6 +174,10 @@ def get_dc_health_summary(raw: dict) -> pd.DataFrame:
     summary["dc_health"] = summary["avg_health"].apply(
         lambda x: "green" if x > 1.5 else ("yellow" if x > 0.5 else "red")
     )
-    dc_info = raw["dc"][["dc_id", "dc_name", "city", "region"]]
+    dc_info = raw["dc"][[
+        "dc_id", "dc_name", "city", "region",
+        "dc_tier", "storage_capacity_units", "service_priority",
+    ]]
     summary = summary.merge(dc_info, on="dc_id", how="left")
     return summary
+

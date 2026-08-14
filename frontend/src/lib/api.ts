@@ -36,6 +36,18 @@ export async function retrain() {
   return r.json()
 }
 
+export async function fetchEscalation(params?: Record<string, string>) {
+  const qs = params ? '?' + new URLSearchParams(params).toString() : ''
+  const r = await fetch(`${API}/api/escalation${qs}`, { cache: 'no-store' })
+  return r.json()
+}
+
+export async function fetchSkuEscalation(dcId: string, skuId: string) {
+  const r = await fetch(`${API}/api/escalation/${dcId}/${skuId}`, { cache: 'no-store' })
+  return r.json()
+}
+
+
 // Helpers
 export function healthClass(flag: string) {
   if (flag === 'red') return 'badge-red'

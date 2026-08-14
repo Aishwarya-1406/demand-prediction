@@ -64,6 +64,9 @@ def mape(y_true, y_pred, eps=1e-6):
 def baseline_predict(df: pd.DataFrame, dc_id: str, sku_id: str,
                      test_days: int = 21) -> dict:
     sub = df[(df["dc_id"] == dc_id) & (df["sku_id"] == sku_id)].sort_values("date")
+    # Drop NaN demand rows before computing baseline
+    sub = sub.dropna(subset=["demand_units"]).copy()
+    sub["demand_units"] = sub["demand_units"].fillna(0)
     if len(sub) < test_days + 14:
         return {"mae": None, "rmse": None, "mape": None, "model": "baseline"}
 
@@ -72,8 +75,12 @@ def baseline_predict(df: pd.DataFrame, dc_id: str, sku_id: str,
     preds = []
     for i in range(test_days):
         lookback = sub["demand_units"].values[-(test_days + 14 - i): -(test_days - i)]
-        preds.append(np.mean(lookback))
+        val = np.nanmean(lookback) if len(lookback) > 0 else 0.0
+        preds.append(float(val) if np.isfinite(val) else 0.0)
     y_pred = np.array(preds)
+    # Final NaN guard
+    y_true = np.nan_to_num(y_true, nan=0.0)
+    y_pred = np.nan_to_num(y_pred, nan=0.0)
     return {
         "mae": mae(y_true, y_pred),
         "rmse": rmse(y_true, y_pred),
@@ -82,6 +89,7 @@ def baseline_predict(df: pd.DataFrame, dc_id: str, sku_id: str,
         "y_pred": y_pred.tolist(),
         "y_true": y_true.tolist(),
     }
+
 
 
 # ── ML model training ────────────────────────────────────────────────────────
@@ -244,10 +252,11 @@ def forecast_sku_dc(df: pd.DataFrame, dc_id: str, sku_id: str,
                 xgb_model.fit(train_f[FEATURE_COLS].values, train_f["demand_units"].values)
 
         xgb_test_pred = xgb_model.predict(test_f[FEATURE_COLS].values)
-        xgb_test_pred = np.clip(xgb_test_pred, 0, None)
-        xgb_mae = mae(test_f["demand_units"].values, xgb_test_pred)
-        xgb_rmse = rmse(test_f["demand_units"].values, xgb_test_pred)
-        xgb_mape = mape(test_f["demand_units"].values, xgb_test_pred)
+        xgb_test_pred = np.clip(np.nan_to_num(xgb_test_pred, nan=0.0), 0, None)
+        y_true_test = np.nan_to_num(test_f["demand_units"].values, nan=0.0)
+        xgb_mae  = mae(y_true_test, xgb_test_pred)
+        xgb_rmse = rmse(y_true_test, xgb_test_pred)
+        xgb_mape = mape(y_true_test, xgb_test_pred)
 
         # Pick winner vs baseline
         winner = "xgboost" if xgb_mae < bl_mae else "baseline"
