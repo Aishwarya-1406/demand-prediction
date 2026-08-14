@@ -158,14 +158,16 @@ def get_dc_health_summary(raw: dict) -> pd.DataFrame:
 
     def agg(g):
         sm_sub = raw["sku"][["sku_id", "criticality"]].set_index("sku_id")
-        crits = snap[snap["dc_id"] == g.name]["sku_id"].map(sm_sub["criticality"])
+        # Drop duplicate sku rows (should be 1 per dc×sku but guard against duplicates)
+        g_dedup = g.drop_duplicates(subset=["sku_id"])
+        crits = g_dedup["sku_id"].map(sm_sub["criticality"])
         return pd.Series({
-            "n_skus": len(g),
+            "n_skus": g_dedup["sku_id"].nunique(),
             "n_critical_skus": int((crits == "High").sum()),
-            "n_stockout_risk": int((g["health_flag"] == "red").sum()),
-            "n_reorder_needed": int((g["health_flag"].isin(["red", "yellow"])).sum()),
+            "n_stockout_risk": int((g_dedup["health_flag"] == "red").sum()),
+            "n_reorder_needed": int((g_dedup["health_flag"].isin(["red", "yellow"])).sum()),
             "pending_inbound": int(g["inbound_inventory"].sum()),
-            "avg_health": g["health_flag"].map({"red": 0, "yellow": 1, "green": 2}).mean(),
+            "avg_health": g_dedup["health_flag"].map({"red": 0, "yellow": 1, "green": 2}).mean(),
         })
 
     summary = snap.groupby("dc_id").apply(agg).reset_index()

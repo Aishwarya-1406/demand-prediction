@@ -42,7 +42,7 @@ function ForecastPanel({ data }: { data: any }) {
     <>
       <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
         {[
-          { label: 'Winner', val: (fcast.winner || 'baseline').replace('_', ' ').toUpperCase(), col: 'var(--accent)' },
+          { label: 'Per-SKU Model', val: (fcast.winner || 'baseline').replace('_', ' ').toUpperCase(), col: 'var(--accent)' },
           { label: 'MAE', val: fcast.mae != null ? `${fcast.mae} units/day` : '—' },
           { label: 'RMSE', val: fcast.rmse != null ? `${fcast.rmse}` : '—' },
           { label: 'Trend', val: <span className={`trend-chip ${trendClass(data.trend)}`}>{trendIcon(data.trend)} {data.trend}</span> },
@@ -53,6 +53,9 @@ function ForecastPanel({ data }: { data: any }) {
           </div>
         ))}
       </div>
+      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 10 }}>
+        Per-SKU: XGBoost vs rolling-average baseline · MAPE computed on days ≥5 units demand
+      </div>
 
       <ResponsiveContainer width="100%" height={200}>
         <LineChart data={display} margin={{ top: 4, right: 12, left: -10, bottom: 0 }}>
@@ -60,13 +63,13 @@ function ForecastPanel({ data }: { data: any }) {
           <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'var(--text-muted)' }}
             tickFormatter={d => d?.slice(5)} interval={6} />
           <YAxis tick={{ fontSize: 10, fill: 'var(--text-muted)' }} />
-          <Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12 }}
+          <Tooltip contentStyle={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12, boxShadow: 'var(--shadow-card)' }}
             labelStyle={{ color: 'var(--text-muted)' }} />
           <Legend wrapperStyle={{ fontSize: 11 }} />
           <Line type="monotone" dataKey="actual" stroke="var(--text-secondary)"
             dot={false} strokeWidth={1.5} name="Actual" />
           <Line type="monotone" dataKey="predicted" stroke="var(--accent)"
-            dot={false} strokeWidth={2} strokeDasharray="4 2" name="Forecast" />
+            dot={false} strokeWidth={2} strokeDasharray="4 2" name="Forecast (XGBoost)" />
         </LineChart>
       </ResponsiveContainer>
 
@@ -347,8 +350,8 @@ function DACDFPanel({ data }: { data: any }) {
       </div>
 
       {/* Fused Recommendation */}
-      <div style={{ marginTop: 14, padding: '16px', background: 'var(--green-dim)', border: '1px solid var(--green)', borderRadius: 'var(--radius)', position: 'relative' }}>
-        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--green)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
+      <div style={{ marginTop: 14, padding: '16px', background: 'var(--accent-dim)', border: '1px solid var(--accent)', borderRadius: 'var(--radius)', position: 'relative' }}>
+        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>
           Final Recommendation (DACDF Fusion)
         </div>
         <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)', marginBottom: 6 }}>

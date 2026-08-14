@@ -43,7 +43,11 @@ export default function DashboardPage() {
           <div className="page-header">
             <div className="page-title-group">
               <h1>Network Overview</h1>
-              <p>Demand sensing &amp; replenishment status across 5 distribution centers, 15 SKUs</p>
+              <p>
+                Demand sensing &amp; replenishment status across{' '}
+                {loading ? '…' : dcs.length} distribution centers,{' '}
+                {loading ? '…' : (kpis.total_skus ?? 40)} SKUs
+              </p>
             </div>
             <button className="btn btn-primary" id="btn-replenishment" onClick={() => router.push('/replenishment')}>
               View Replenishment Table →
@@ -81,15 +85,19 @@ export default function DashboardPage() {
               <div className="kpi-sub">Optimal action across network</div>
             </div>
             <div className="kpi-card">
-              <div className="kpi-label">Forecast Model</div>
-              <div className="kpi-value" style={{ fontSize: '1.1rem', paddingTop: 4 }}>
-                {loading ? '…' : (kpis.global_model_metrics?.winner || 'RF').replace('_', ' ').toUpperCase()}
+              <div className="kpi-label">Model Comparison</div>
+              <div className="kpi-value" style={{ fontSize: '1.05rem', paddingTop: 4 }}>
+                {loading ? '…' : (kpis.global_model_metrics?.winner || 'XGBoost').replace('_', ' ').toUpperCase()}
               </div>
               <div className="kpi-sub">
-                MAE {kpis.global_model_metrics?.random_forest?.mae?.toFixed(1) ?? '—'} units/day
+                Global winner · MAE {kpis.global_model_metrics?.random_forest?.mae?.toFixed(1) ?? '—'} units/day
+                <span style={{ display: 'block', marginTop: 2, fontSize: 10, color: 'var(--text-muted)' }}>
+                  Per-SKU forecasting uses XGBoost vs baseline
+                </span>
               </div>
             </div>
           </div>
+
 
           {/* DC Cards */}
           <h2 style={{ marginBottom: 4 }}>Distribution Centers</h2>
@@ -114,8 +122,8 @@ export default function DashboardPage() {
                             <span style={{
                               fontSize: 9, fontWeight: 700, letterSpacing: '0.05em',
                               padding: '2px 6px', borderRadius: 4,
-                              background: dc.dc_tier === 'Metro' ? 'rgba(99,102,241,0.15)' : 'rgba(245,158,11,0.15)',
-                              color: dc.dc_tier === 'Metro' ? '#818cf8' : '#fbbf24',
+                              background: dc.dc_tier === 'Metro' ? 'var(--accent-dim)' : 'var(--yellow-dim)',
+                              color: dc.dc_tier === 'Metro' ? 'var(--accent)' : 'var(--yellow)',
                               textTransform: 'uppercase',
                             }}>{dc.dc_tier}</span>
                           )}

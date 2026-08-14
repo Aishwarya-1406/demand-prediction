@@ -212,9 +212,14 @@ def evaluate_all_options(
     req_qty_regular = max(0, demand_lt_regular + safety_stock - usable - inbound)
     req_qty_local = max(0, demand_lt_local + safety_stock - usable - inbound)
     req_qty_transfer = max(0, demand_lt_transfer + safety_stock - usable - inbound)
-    req_qty_regular = max(req_qty_regular, 50)  # minimum meaningful order
-    req_qty_local = max(req_qty_local, 50)
-    req_qty_transfer = max(req_qty_transfer, 50)
+    # Apply minimum meaningful order quantity ONLY when a genuine need exists.
+    # If required_qty is truly 0 (e.g. well-stocked SKU), do NOT force a 50-unit order.
+    if req_qty_regular > 0:
+        req_qty_regular = max(req_qty_regular, 50)
+    if req_qty_local > 0:
+        req_qty_local = max(req_qty_local, 50)
+    if req_qty_transfer > 0:
+        req_qty_transfer = max(req_qty_transfer, 50)
 
     options = []
 

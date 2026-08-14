@@ -276,6 +276,8 @@ def run_full_pipeline(verbose: bool = True) -> dict:
         "estimated_total_replenishment_cost": sum(r["est_cost"] for r in replenishment_rows),
         "global_model_metrics": global_metrics,
         "analysis_date": str(ANALYSIS_DATE.date()),
+        "total_dcs": len(dc_ids),
+        "total_skus": len(sku_ids),
     }
 
     if verbose: print("[6/6] Saving cache...")

@@ -52,7 +52,7 @@ export default function ReplenishmentPage() {
           <div className="topbar-actions">
             <select id="filter-dc" value={dcFilter} onChange={e => setDcFilter(e.target.value)}>
               <option value="">All DCs</option>
-              {['DC001','DC002','DC003','DC004','DC005'].map(d => <option key={d} value={d}>{d}</option>)}
+              {['DC001','DC002','DC003','DC004','DC005','DC006','DC007','DC008'].map(d => <option key={d} value={d}>{d}</option>)}
             </select>
             <select id="filter-crit" value={critFilter} onChange={e => setCritFilter(e.target.value)}>
               <option value="">All Criticality</option>
@@ -71,7 +71,12 @@ export default function ReplenishmentPage() {
           <div className="page-header">
             <div className="page-title-group">
               <h1>Network Replenishment Plan</h1>
-              <p>DACDF-fused recommendations across 5 DCs, 15 SKUs. Analysis date: 2026-08-13.</p>
+              <p>
+                DACDF-fused recommendations across{' '}
+                {loading ? '…' : new Set(rows.map((r: any) => r.dc_id)).size || 8} DCs,{' '}
+                {loading ? '…' : ((kpis.total_skus ?? new Set(rows.map((r: any) => r.sku_id)).size) || 40)} SKUs.
+                {' '}Analysis date: 2026-08-13.
+              </p>
             </div>
           </div>
 

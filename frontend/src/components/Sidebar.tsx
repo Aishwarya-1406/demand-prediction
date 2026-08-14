@@ -4,18 +4,20 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useEffect } from 'react'
 
 const navItems = [
-  { href: '/dashboard',   label: 'Dashboard',    icon: '◉' },
-  { href: '/replenishment', label: 'Replenishment', icon: '⬡' },
-  { href: '/escalation',  label: 'Escalation',   icon: '🚨' },
+  { href: '/dashboard',     label: 'Dashboard'     },
+  { href: '/replenishment', label: 'Replenishment' },
+  { href: '/escalation',    label: 'Escalation'    },
 ]
 
-
 const dcItems = [
-  { id: 'DC001', name: 'Mumbai', icon: '●' },
-  { id: 'DC002', name: 'Delhi', icon: '●' },
-  { id: 'DC003', name: 'Bangalore', icon: '●' },
-  { id: 'DC004', name: 'Kolkata', icon: '●' },
-  { id: 'DC005', name: 'Chennai', icon: '●' },
+  { id: 'DC001', name: 'Chennai'   },
+  { id: 'DC002', name: 'Bangalore' },
+  { id: 'DC003', name: 'Hyderabad' },
+  { id: 'DC004', name: 'Mumbai'    },
+  { id: 'DC005', name: 'Delhi'     },
+  { id: 'DC006', name: 'Kolkata'   },
+  { id: 'DC007', name: 'Pune'      },
+  { id: 'DC008', name: 'Ahmedabad' },
 ]
 
 export default function Sidebar() {
@@ -31,6 +33,16 @@ export default function Sidebar() {
     router.push('/')
   }
 
+  // Determine active top-level section from the current pathname.
+  // /dc/* is a drill-down from Dashboard → Dashboard stays active.
+  // /replenishment/* → Replenishment active.
+  // /escalation/* → Escalation active.
+  // Everything else (including /dashboard) → Dashboard active.
+  const activeSection =
+    path.startsWith('/replenishment') ? '/replenishment' :
+    path.startsWith('/escalation')    ? '/escalation'    :
+    '/dashboard'
+
   return (
     <aside className="sidebar">
       <div className="sidebar-logo">
@@ -43,19 +55,24 @@ export default function Sidebar() {
 
       <nav className="sidebar-nav">
         <div className="nav-section-label">Overview</div>
-        {navItems.map(n => (
-          <Link key={n.href} href={n.href}
-            className={`nav-link ${path === n.href ? 'active' : ''}`}>
-            <span className="nav-icon">{n.icon}</span>
-            {n.label}
-          </Link>
-        ))}
+        {navItems.map(n => {
+          const active = activeSection === n.href
+          return (
+            <Link key={n.href} href={n.href}
+              className={`nav-link ${active ? 'active' : ''}`}>
+              <span className="nav-icon" style={{ fontSize: 10 }}>
+                {active ? '●' : '○'}
+              </span>
+              {n.label}
+            </Link>
+          )
+        })}
 
         <div className="nav-section-label" style={{ marginTop: 12 }}>Distribution Centers</div>
         {dcItems.map(dc => (
           <Link key={dc.id} href={`/dc/${dc.id}`}
             className={`nav-link ${path.startsWith(`/dc/${dc.id}`) ? 'active' : ''}`}>
-            <span className="nav-icon" style={{ fontSize: 8 }}>{dc.icon}</span>
+            <span className="nav-icon" style={{ fontSize: 8 }}>●</span>
             <span>{dc.name} DC</span>
             <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--text-muted)' }}>{dc.id}</span>
           </Link>

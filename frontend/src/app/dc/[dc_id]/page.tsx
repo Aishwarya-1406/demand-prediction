@@ -46,7 +46,7 @@ export default function DCDetailPage() {
           <div className="page-header">
             <div className="page-title-group">
               <h1>{data?.dc_summary?.dc_name || dc_id}</h1>
-              <p>{data?.dc_summary?.city} · {data?.dc_summary?.region} Region · 15 SKUs tracked</p>
+              <p>{data?.dc_summary?.city} · {data?.dc_summary?.region} Region · {skus.length} SKUs tracked</p>
             </div>
             <div style={{ display: 'flex', gap: 10 }}>
               {['red', 'yellow', 'green'].map(h => (
