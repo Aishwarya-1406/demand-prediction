@@ -65,12 +65,13 @@ def run_full_pipeline(verbose: bool = True) -> dict:
 
     if verbose: print("[2/6] Training ML models...")
     model_results = train_models(dd)
-    xgb_model = model_results["xgb"]
-    rf_model = model_results["rf"]
+    champion_model = model_results["best_model"]
+    champion_name = model_results["winner"]
     global_metrics = {
         "xgboost": model_results["xgboost"],
         "random_forest": model_results["random_forest"],
-        "winner": model_results["winner"],
+        "winner": champion_name,
+        "production_model": champion_name,
     }
     if verbose:
         print(f"  XGBoost: MAE={model_results['xgboost']['mae']:.2f}, "
@@ -102,8 +103,13 @@ def run_full_pipeline(verbose: bool = True) -> dict:
             dc_info = dc_meta.get(dc_id, {})
             criticality = sku_info.get("criticality", "Medium")
 
-            # Forecast
-            fcast = forecast_sku_dc(dd, dc_id, sku_id, xgb_model)
+            # Forecast (global champion model: RF or XGB by holdout MAE)
+            fcast = forecast_sku_dc(
+                dd, dc_id, sku_id,
+                ml_model=champion_model,
+                champion_name=champion_name,
+                promo_calendar=raw.get("promo_calendar"),
+            )
 
             # Snapshot row
             snap_row = snapshot[(snapshot["dc_id"] == dc_id) & (snapshot["sku_id"] == sku_id)]
@@ -153,9 +159,11 @@ def run_full_pipeline(verbose: bool = True) -> dict:
             )
 
             # Replenishment requirement
+            # usable already includes inbound (in-transit) stock — do NOT subtract
+            # inbound again here, as that would double-count it and under-state the order need.
             demand_lt = fcast.get("demand_during_lead_time_regular", avg_daily * 7)
             inbound = float(snap["inbound_inventory"])
-            req_qty = max(0, demand_lt + safety_stock - usable - inbound)
+            req_qty = max(0, demand_lt + safety_stock - usable)
 
             # Lead times for frequency + escalation
             lt_sub = lt[(lt["dc_id"] == dc_id) & (lt["sku_id"] == sku_id)]
@@ -198,6 +206,9 @@ def run_full_pipeline(verbose: bool = True) -> dict:
                 best_action=dacdf["final_option"],
                 trend=fcast.get("trend", "stable"),
                 mape=fcast.get("mape"),
+                safety_stock=safety_stock,
+                usable_inventory=usable,
+                inbound_inventory=inbound,
             )
 
             result = {

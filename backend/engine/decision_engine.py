@@ -240,9 +240,11 @@ def evaluate_all_options(
     days_till_stockout = (usable / avg_daily) if avg_daily > 0 else 999
 
     # Replenishment requirement
-    req_qty_regular = max(0, demand_lt_regular + safety_stock - usable - inbound)
-    req_qty_local = max(0, demand_lt_local + safety_stock - usable - inbound)
-    req_qty_transfer = max(0, demand_lt_transfer + safety_stock - usable - inbound)
+    # usable already includes inbound (in-transit) stock, so we do NOT subtract
+    # inbound again here — doing so would double-count it and under-state the order need.
+    req_qty_regular = max(0, demand_lt_regular + safety_stock - usable)
+    req_qty_local = max(0, demand_lt_local + safety_stock - usable)
+    req_qty_transfer = max(0, demand_lt_transfer + safety_stock - usable)
     # Apply minimum meaningful order quantity ONLY when a genuine need exists.
     # If required_qty is truly 0 (e.g. well-stocked SKU), do NOT force a 50-unit order.
     if req_qty_regular > 0:

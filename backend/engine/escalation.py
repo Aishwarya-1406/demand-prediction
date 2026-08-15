@@ -63,27 +63,54 @@ def classify_escalation_tier(
     health_flag: str,
     days_till_stockout: float,
     lead_time_days: float,
-    near_expiry_qty: int,
-    avg_daily_demand: float,
+    near_expiry_qty: int = 0,
+    avg_daily_demand: float = 1.0,
+    safety_stock: float = 0.0,
+    usable_inventory: float = 0.0,
+    inbound_inventory: float = 0.0,
+    days_to_safety_stock: Optional[float] = None,
 ) -> int:
     """
     Assign escalation tier based on criticality, stock health, and urgency.
+
+    Tier 3 (Emergency): Critical stockout imminent within 1-2 days or zero stock on critical SKU
+    Tier 2 (Escalate to Manager): Imminent safety stock breach within lead time with no inbound
+    Tier 1 (Reorder Alert): Inventory below reorder point (routine replenishment needed)
+    Tier 0 (Monitor): Inventory healthy
     """
+    if days_to_safety_stock is None:
+        if safety_stock > 0 and avg_daily_demand > 0 and usable_inventory > 0:
+            days_to_safety_stock = (usable_inventory - safety_stock) / avg_daily_demand
+        elif days_till_stockout is not None:
+            days_to_safety_stock = days_till_stockout
+        else:
+            days_to_safety_stock = 9999.0
+
     # Tier 3: Emergency
-    if days_till_stockout <= 3 and criticality in ("High", "Medium"):
+    # Imminent zero stockout within 1 day, or already red on High/Medium,
+    # or High-criticality item with safety stock runway <= 1.0 day and no pending inbound.
+    if days_till_stockout <= 1.0:
         return 3
-    if days_till_stockout <= 1:
+    if health_flag == "red" and criticality in ("High", "Medium"):
+        return 3
+    if days_to_safety_stock <= 1.0 and criticality == "High" and inbound_inventory == 0:
         return 3
 
-    # Tier 2: Escalate
-    if criticality == "High" and health_flag == "red":
+    # Tier 2: Escalate to Manager
+    # Already red on Low criticality, or High-criticality item with safety stock runway <= 2.5 days (no inbound),
+    # or Medium-criticality item with safety stock runway <= 1.5 days (no inbound),
+    # or total runway <= 3.0 days on High criticality with no inbound.
+    if health_flag == "red":
         return 2
-    if days_till_stockout <= 7 and criticality == "High":
+    if days_to_safety_stock <= 2.5 and criticality == "High" and inbound_inventory == 0:
         return 2
-    if days_till_stockout < lead_time_days and criticality != "Low":
+    if days_to_safety_stock <= 1.5 and criticality == "Medium" and inbound_inventory == 0:
+        return 2
+    if days_till_stockout <= 3.0 and criticality == "High" and inbound_inventory == 0:
         return 2
 
     # Tier 1: Reorder Alert
+    # Stock at or below reorder point (routine replenishment triggered)
     if health_flag in ("red", "yellow"):
         return 1
     if near_expiry_qty > avg_daily_demand * 30:
@@ -195,13 +222,23 @@ def run_escalation(
     best_action: str,
     trend: str,
     mape: Optional[float],
+    safety_stock: float = 0.0,
+    usable_inventory: float = 0.0,
+    inbound_inventory: float = 0.0,
 ) -> dict:
     """
     Full escalation classification for one DC×SKU.
     """
     tier = classify_escalation_tier(
-        criticality, health_flag, days_till_stockout,
-        lead_time_regular, near_expiry_qty, avg_daily_demand
+        criticality=criticality,
+        health_flag=health_flag,
+        days_till_stockout=days_till_stockout,
+        lead_time_days=lead_time_regular,
+        near_expiry_qty=near_expiry_qty,
+        avg_daily_demand=avg_daily_demand,
+        safety_stock=safety_stock,
+        usable_inventory=usable_inventory,
+        inbound_inventory=inbound_inventory,
     )
     tier_info = TIERS[tier]
 

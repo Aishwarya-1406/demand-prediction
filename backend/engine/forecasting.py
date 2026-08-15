@@ -13,7 +13,8 @@ from sklearn.metrics import mean_absolute_error, mean_squared_error
 from xgboost import XGBRegressor
 
 from .feature_engineering import (
-    add_features, get_train_test, FEATURE_COLS, classify_trend
+    add_features, get_train_test, FEATURE_COLS, classify_trend,
+    build_recursive_feature_row, _load_masters,
 )
 
 warnings.filterwarnings("ignore")
@@ -22,6 +23,8 @@ MODELS_DIR = Path(__file__).parent.parent / "models"
 MODELS_DIR.mkdir(exist_ok=True)
 
 HORIZON_DAYS = 14   # replenishment planning horizon
+CHAMPION_PATH = MODELS_DIR / "champion_model.pkl"
+WINNER_PATH = MODELS_DIR / "champion_name.txt"
 
 
 # ── Metric helpers ──────────────────────────────────────────────────────────
@@ -58,6 +61,60 @@ def mape(y_true, y_pred, eps=1e-6):
     return float(np.mean(np.abs((y_true[mask] - y_pred[mask]) / (y_true[mask] + eps))) * 100)
 
 
+def _promo_flag_for_date(
+    date: pd.Timestamp,
+    sub: pd.DataFrame,
+    promo_calendar: pd.DataFrame | None,
+) -> int:
+    """Resolve promo flag for a forecast date from history or network calendar."""
+    row = sub[sub["date"] == date]
+    if not row.empty and "promo_flag" in row.columns:
+        return int(row.iloc[0]["promo_flag"])
+
+    if promo_calendar is not None and not promo_calendar.empty:
+        cal = promo_calendar.copy()
+        cal["start_date"] = pd.to_datetime(cal["start_date"])
+        cal["end_date"] = pd.to_datetime(cal["end_date"])
+        active = cal[(cal["start_date"] <= date) & (cal["end_date"] >= date)]
+        if not active.empty and "promo_flag" in active.columns:
+            return int(active["promo_flag"].max())
+    return 0
+
+
+def _recursive_horizon_forecast(
+    model,
+    history: list[float],
+    last_date: pd.Timestamp,
+    dataset_start: pd.Timestamp,
+    identity: dict,
+    lag_fill: float,
+    horizon: int,
+    sub: pd.DataFrame,
+    promo_calendar: pd.DataFrame | None = None,
+) -> list[int]:
+    """Generate horizon-day forecasts, updating lags/rollings after each step."""
+    working = list(history)
+    pred_list: list[int] = []
+
+    for step in range(horizon):
+        next_date = last_date + pd.Timedelta(days=step + 1)
+        promo_flag = _promo_flag_for_date(next_date, sub, promo_calendar)
+        row = build_recursive_feature_row(
+            working,
+            next_date,
+            dataset_start,
+            promo_flag,
+            identity,
+            lag_fill,
+        )
+        x = np.array([row[c] for c in FEATURE_COLS], dtype=float).reshape(1, -1)
+        p = max(0.0, float(model.predict(x)[0]))
+        rounded = round(p)
+        pred_list.append(rounded)
+        working.append(float(rounded))
+
+    return pred_list
+
 
 # ── Baseline: rolling 14-day average ────────────────────────────────────────
 
@@ -89,7 +146,6 @@ def baseline_predict(df: pd.DataFrame, dc_id: str, sku_id: str,
         "y_pred": y_pred.tolist(),
         "y_true": y_true.tolist(),
     }
-
 
 
 # ── ML model training ────────────────────────────────────────────────────────
@@ -138,6 +194,9 @@ def train_models(df: pd.DataFrame) -> dict:
         pickle.dump(xgb, f)
     with open(MODELS_DIR / "rf_model.pkl", "wb") as f:
         pickle.dump(rf, f)
+    with open(CHAMPION_PATH, "wb") as f:
+        pickle.dump(best_model, f)
+    WINNER_PATH.write_text(winner)
 
     return {
         "random_forest": rf_metrics,
@@ -154,24 +213,30 @@ def train_models(df: pd.DataFrame) -> dict:
 
 
 def load_models():
-    """Load saved models from disk."""
+    """Load saved champion model and global winner name."""
+    if CHAMPION_PATH.exists():
+        with open(CHAMPION_PATH, "rb") as f:
+            champion = pickle.load(f)
+        winner = WINNER_PATH.read_text().strip() if WINNER_PATH.exists() else "random_forest"
+        return champion, winner
+
     with open(MODELS_DIR / "xgb_model.pkl", "rb") as f:
         xgb = pickle.load(f)
     with open(MODELS_DIR / "rf_model.pkl", "rb") as f:
         rf = pickle.load(f)
-    return xgb, rf
+    return rf, "random_forest"
 
 
 # ── SHAP explainability ──────────────────────────────────────────────────────
 
-def get_shap_top_drivers(xgb_model, X_sample: np.ndarray,
-                          feature_names: list, top_n: int = 5) -> list:
+def get_shap_top_drivers(model, X_sample: np.ndarray,
+                         feature_names: list, top_n: int = 5) -> list:
     """
     Return top N SHAP feature importances for a single prediction.
     """
     try:
         import shap
-        explainer = shap.TreeExplainer(xgb_model)
+        explainer = shap.TreeExplainer(model)
         shap_vals = explainer.shap_values(X_sample)
         if X_sample.ndim == 1:
             shap_vals = shap_vals.reshape(1, -1)
@@ -181,20 +246,26 @@ def get_shap_top_drivers(xgb_model, X_sample: np.ndarray,
             {"feature": feature_names[i], "importance": float(mean_abs[i])}
             for i in order
         ]
-    except Exception as e:
+    except Exception:
         return [{"feature": fn, "importance": 0.0} for fn in feature_names[:top_n]]
 
 
 # ── Per-SKU per-DC forecast ──────────────────────────────────────────────────
 
 def forecast_sku_dc(df: pd.DataFrame, dc_id: str, sku_id: str,
-                    xgb_model=None, horizon: int = HORIZON_DAYS) -> dict:
+                    ml_model=None, champion_name: str | None = None,
+                    xgb_model=None, horizon: int = HORIZON_DAYS,
+                    promo_calendar: pd.DataFrame | None = None) -> dict:
     """
     Produce a rolling horizon forecast for one dc x sku.
     Returns historical + predicted demand, metrics, SHAP, trend, and
     demand_during_lead_time per supplier type.
     """
+    if ml_model is None and xgb_model is not None:
+        ml_model = xgb_model
+
     sub = df[(df["dc_id"] == dc_id) & (df["sku_id"] == sku_id)].sort_values("date").copy()
+    sub["date"] = pd.to_datetime(sub["date"])
     if len(sub) < 28:
         avg = sub["demand_units"].mean()
         return {
@@ -215,8 +286,8 @@ def forecast_sku_dc(df: pd.DataFrame, dc_id: str, sku_id: str,
     bl = baseline_predict(df, dc_id, sku_id)
     bl_mae = bl.get("mae") or 999
 
-    # XGBoost forecast
-    feat_df = add_features(sub)
+    sku_df, dc_df = _load_masters()
+    feat_df = add_features(sub, sku_df=sku_df, dc_df=dc_df)
     feat_df = feat_df.dropna(subset=FEATURE_COLS)
     if len(feat_df) < 14:
         avg = sub["demand_units"].mean()
@@ -241,37 +312,54 @@ def forecast_sku_dc(df: pd.DataFrame, dc_id: str, sku_id: str,
         avg = sub["demand_units"].mean()
         pred_list = [round(avg)] * horizon
     else:
-        if xgb_model is None:
+        if ml_model is None:
             try:
-                xgb_model, _ = load_models()
+                ml_model, champion_name = load_models()
             except Exception:
-                xgb_model = XGBRegressor(
+                ml_model = XGBRegressor(
                     n_estimators=200, max_depth=5, learning_rate=0.05,
                     random_state=42, verbosity=0
                 )
-                xgb_model.fit(train_f[FEATURE_COLS].values, train_f["demand_units"].values)
+                ml_model.fit(train_f[FEATURE_COLS].values, train_f["demand_units"].values)
+                champion_name = "xgboost"
 
-        xgb_test_pred = xgb_model.predict(test_f[FEATURE_COLS].values)
-        xgb_test_pred = np.clip(np.nan_to_num(xgb_test_pred, nan=0.0), 0, None)
+        ml_test_pred = ml_model.predict(test_f[FEATURE_COLS].values)
+        ml_test_pred = np.clip(np.nan_to_num(ml_test_pred, nan=0.0), 0, None)
         y_true_test = np.nan_to_num(test_f["demand_units"].values, nan=0.0)
-        xgb_mae  = mae(y_true_test, xgb_test_pred)
-        xgb_rmse = rmse(y_true_test, xgb_test_pred)
-        xgb_mape = mape(y_true_test, xgb_test_pred)
+        ml_mae = mae(y_true_test, ml_test_pred)
+        ml_rmse = rmse(y_true_test, ml_test_pred)
+        ml_mape = mape(y_true_test, ml_test_pred)
 
-        # Pick winner vs baseline
-        winner = "xgboost" if xgb_mae < bl_mae else "baseline"
+        model_label = champion_name or "random_forest"
+        winner = model_label if ml_mae < bl_mae else "baseline"
 
-        # Next 14-day forecast using last known row as seed
-        last_row = feat_df.iloc[-1].copy()
-        pred_list = []
-        for _ in range(horizon):
-            x = last_row[FEATURE_COLS].values.reshape(1, -1)
-            p = max(0, float(xgb_model.predict(x)[0]))
-            pred_list.append(round(p))
+        last_row = feat_df.iloc[-1]
+        identity = {
+            "sku_enc": int(last_row["sku_enc"]),
+            "dc_enc": int(last_row["dc_enc"]),
+            "category_enc": int(last_row["category_enc"]),
+            "region_enc": int(last_row["region_enc"]),
+        }
+        history = sub["demand_units"].fillna(0).astype(float).tolist()
+        lag_fill = float(np.median(history)) if history else 0.0
+        dataset_start = pd.to_datetime(df["date"]).min()
+        last_date = sub["date"].max()
+
+        pred_list = _recursive_horizon_forecast(
+            ml_model,
+            history,
+            last_date,
+            dataset_start,
+            identity,
+            lag_fill,
+            horizon,
+            sub,
+            promo_calendar=promo_calendar,
+        )
 
         # SHAP on last 5 test rows
         shap_drivers = get_shap_top_drivers(
-            xgb_model,
+            ml_model,
             test_f[FEATURE_COLS].values[-5:],
             FEATURE_COLS,
         )
@@ -282,7 +370,7 @@ def forecast_sku_dc(df: pd.DataFrame, dc_id: str, sku_id: str,
         hist_actual = hist_actual.rename(columns={"demand_units": "actual"})
 
         test_f_copy = test_f[["date", "demand_units"]].copy()
-        test_f_copy["predicted"] = xgb_test_pred.round().astype(int)
+        test_f_copy["predicted"] = ml_test_pred.round().astype(int)
         test_f_copy["date"] = test_f_copy["date"].dt.strftime("%Y-%m-%d")
 
         # Merge historical and predicted
@@ -291,9 +379,9 @@ def forecast_sku_dc(df: pd.DataFrame, dc_id: str, sku_id: str,
         )
 
         # Future dates
-        last_date = sub["date"].max()
+        last_date_str = sub["date"].max()
         future_dates = [
-            (last_date + pd.Timedelta(days=i+1)).strftime("%Y-%m-%d")
+            (last_date_str + pd.Timedelta(days=i + 1)).strftime("%Y-%m-%d")
             for i in range(horizon)
         ]
         future_df = pd.DataFrame({
@@ -310,11 +398,12 @@ def forecast_sku_dc(df: pd.DataFrame, dc_id: str, sku_id: str,
             "demand_during_lead_time_regular": round(sum(pred_list[:7])),
             "demand_during_lead_time_local": round(sum(pred_list[:2])),
             "demand_during_lead_time_transfer": round(sum(pred_list[:3])),
-            "mae": round(xgb_mae, 2),
-            "rmse": round(xgb_rmse, 2),
-            "mape": round(xgb_mape, 2),
+            "mae": round(ml_mae, 2),
+            "rmse": round(ml_rmse, 2),
+            "mape": round(ml_mape, 2),
             "baseline_mae": round(bl_mae, 2),
             "winner": winner,
+            "champion_model": model_label,
             "trend": classify_trend(df, dc_id, sku_id),
             "shap_drivers": shap_drivers,
             "chart_data": chart_data.to_dict("records"),

@@ -31,8 +31,5 @@ Thumbs.db
 # Large binary model files (retrained locally)
 backend/models/*.pkl
 
-# Pipeline cache (regenerated on startup)
-backend/cache/pipeline_output.json
-
 # Pytest
 .pytest_cache/
