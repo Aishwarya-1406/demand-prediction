@@ -134,6 +134,9 @@ def run_full_pipeline(verbose: bool = True) -> dict:
             near_expiry_qty = int(
                 batches_sku[batches_sku["days_to_expiry"].between(0, 90)]["quantity"].sum()
             )
+            
+            # Filter out fully consumed batches (quantity <= 0) before sending to frontend
+            batches_for_frontend = batches_sku[batches_sku["quantity"] > 0].copy()
 
             # Options evaluation
             options = evaluate_all_options(
@@ -231,7 +234,7 @@ def run_full_pipeline(verbose: bool = True) -> dict:
                 "forecast": fcast,
                 "trend": fcast.get("trend", "stable"),
                 "replenishment_requirement": round(req_qty),
-                "batches": batches_sku.to_dict("records"),
+                "batches": batches_for_frontend.to_dict("records"),
                 "options": scored,
                 "dacdf": dacdf,
                 "frequency_plan": freq_plan,
