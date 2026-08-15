@@ -301,8 +301,11 @@ def run_full_pipeline(verbose: bool = True) -> dict:
         "replenishment_table": replenishment_rows,
         "kpis": kpis,
     }
+    json_str = json.dumps(output, cls=NumpyEncoder, indent=2)
+    # Force replace standard python json NaN/Infinity outputs with valid JSON
+    json_str = json_str.replace(" NaN", " null").replace(" Infinity", " 9999").replace(" -Infinity", " -9999")
     with open(CACHE_DIR / "pipeline_output.json", "w") as f:
-        json.dump(output, f, cls=NumpyEncoder, indent=2)
+        f.write(json_str)
 
     if verbose: print(f"\nDone. Cached to {CACHE_DIR / 'pipeline_output.json'}")
     return output
