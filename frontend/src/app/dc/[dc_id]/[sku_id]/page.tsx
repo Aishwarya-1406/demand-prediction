@@ -74,12 +74,12 @@ function ForecastPanel({ data }: { data: any }) {
       </ResponsiveContainer>
 
       {/* SHAP drivers */}
-      {fcast.shap_drivers?.length > 0 && (
-        <div style={{ marginTop: 14 }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
-            Top Forecast Drivers (SHAP)
-          </div>
-          {fcast.shap_drivers.map((d: any, i: number) => (
+      <div style={{ marginTop: 14 }}>
+        <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+          Top Forecast Drivers (SHAP)
+        </div>
+        {fcast.shap_drivers?.length > 0 ? (
+          fcast.shap_drivers.map((d: any, i: number) => (
             <div key={i} style={{ marginBottom: 6 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, marginBottom: 3 }}>
                 <span style={{ color: 'var(--text-secondary)' }}>{d.feature.replace(/_/g, ' ')}</span>
@@ -89,9 +89,13 @@ function ForecastPanel({ data }: { data: any }) {
                 <div className="score-bar-fill" style={{ width: `${Math.min(d.importance * 100, 100)}%` }} />
               </div>
             </div>
-          ))}
-        </div>
-      )}
+          ))
+        ) : (
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic', padding: '8px 0' }}>
+            Unavailable
+          </div>
+        )}
+      </div>
 
       <div style={{ marginTop: 12, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
         {[

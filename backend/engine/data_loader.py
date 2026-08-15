@@ -103,13 +103,20 @@ def get_demand_enriched(raw: dict) -> pd.DataFrame:
         dd["days_of_stock"].clip(upper=365).astype(int), unit="D"
     )
 
+    # Incorporate lead times for health_flag logic
+    lt_reg = raw["lead_times"].query("supplier_type == 'regular'")[["sku_id", "dc_id", "lead_time_days"]].drop_duplicates(subset=["sku_id", "dc_id"])
+    dd = dd.merge(lt_reg, on=["sku_id", "dc_id"], how="left")
+    dd["lead_time_days"] = dd["lead_time_days"].fillna(7) # default fallback
+
     # Holding cost per unit per day
     dd["holding_cost_daily"] = dd["unit_cost"] * dd["holding_cost_pct"] / 365
 
     # Inventory health flag
+    # Red: Either critically low on safety stock, OR expected to stock out before regular replenishment arrives
+    # Yellow: Below reorder point, OR expected to stock out shortly after lead time
     conditions = [
-        dd["usable_inventory"] <= dd["safety_stock"],
-        dd["usable_inventory"] <= dd["reorder_point"],
+        (dd["usable_inventory"] <= dd["safety_stock"]) | (dd["days_of_stock"] <= dd["lead_time_days"]),
+        (dd["usable_inventory"] <= dd["reorder_point"]) | (dd["days_of_stock"] <= (dd["lead_time_days"] + 7)),
     ]
     choices = ["red", "yellow"]
     dd["health_flag"] = np.select(conditions, choices, default="green")

@@ -247,9 +247,8 @@ def get_shap_top_drivers(model, X_sample: np.ndarray,
             for i in order
         ]
     except Exception:
-        return [{"feature": fn, "importance": 0.0} for fn in feature_names[:top_n]]
-
-
+        # User requested: If SHAP genuinely cannot be calculated, return empty array so frontend shows Unavailable
+        return []
 # ── Per-SKU per-DC forecast ──────────────────────────────────────────────────
 
 def forecast_sku_dc(df: pd.DataFrame, dc_id: str, sku_id: str,
