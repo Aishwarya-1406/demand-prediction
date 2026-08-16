@@ -1,4 +1,7 @@
-const API = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+// Hardcoding Render URL to ensure teammate/preview links always hit the correct backend.
+const API = process.env.NEXT_PUBLIC_API_URL && process.env.NEXT_PUBLIC_API_URL !== '' 
+  ? process.env.NEXT_PUBLIC_API_URL 
+  : 'https://demand-prediction-b16e.onrender.com'
 
 export async function fetchDCs() {
   const r = await fetch(`${API}/api/dcs`, { cache: 'no-store' })
